@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>Central Logging</title>
+        
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+        <script type="text/javascript">
+            var currentIdx = -1;
+            var currentReq;
+
+            function selectImage(idx) {
+                if (currentReq != undefined) {
+                    currentReq.abort();
+                }
+                currentIdx = idx;
+                buffer(poll);
+            }
+
+            function poll() {
+                if (currentIdx != -1) {
+                    currentReq = $.ajax({
+                        url: '/poll/' + currentIdx,
+                        success: function(data) {
+                            $.each(data.buffer, function(i, val) {
+                                logappend(val);
+                            });
+                            //window.scrollTo(0, document.body.scrollHeight);
+                            $('#log').animate({ scrollTop: $('#log').prop('scrollHeight') - $('#log').height() }, 500);
+                            poll();
+                        },
+                        error: function(xhr, err) {
+                            if (xhr.status == 408) {
+                                poll();
+                            }
+                            else if (err != 'abort') {
+                                console.log('poll() error: ' + err);
+                            }
+                        },
+                        timout: 60000
+                    });
+                }
+            }
+
+            function buffer(callback) {
+                if (currentIdx != -1) {
+                    $.ajax({
+                        url: '/buffer/' + currentIdx,
+                        success: function(data) {
+                            $('#log').text('');
+                            $.each(data.buffer, function(i, val) {
+                                logappend(val);
+                            });
+                            //window.scrollTo(0, document.body.scrollHeight);
+                            $('#log').animate({ scrollTop: $('#log').prop('scrollHeight') - $('#log').height() }, 500);
+                            callback();
+                        },
+                        error: function(xhr, err) {
+                            console.log('buffer() error: ' + err);
+                        }
+                    });
+                }
+            }
+
+            function logappend(val) {
+                // select entry color
+                var color = 'cyan';
+                if (val.indexOf('Warning:') > -1)
+                    color = 'orange';
+                else if (val.indexOf('Error:') > -1 || val.indexOf('Critical:') > -1)
+                    color = 'red';
+
+                // append new node
+                var node = $('<font color="' + color + '">' + val + '</font><br />');
+                $('#log').append(node);
+
+            }
+
+            function load() {
+                var logHeight = $(window).height() - $('#header').height() - 30;
+                $('#log').height(logHeight);
+            }
+        </script>
+    </head>
+    <body style="font-family:'lucida console';background-color:#080808;color:cyan;" onload="load();">
+        <div id="header" style="background-color:#808080;padding:5px;">
+            <b>Selected Image:</b>&nbsp;&nbsp;
+            <select onchange="selectImage(this.options[this.selectedIndex].value);">
+                <option value="-1" selected="selected">--- Select a subscribed image ---</option>
+
+                {% for c in channels %}
+                <option value="{{ c.replace('/', '-') }}">{{ c }}</option>
+                {% endfor %}
+        
+                {% for l in lost %}
+                <option value="{{ l.replace('/', '-') }}">{{ l }} (disconnected)</option>
+                {% endfor %}
+            </select>
+            <br />
+        </div>
+    
+        <div id="log" style="padding-left:5px;font-size:13px;overflow:auto;"></div>
+
+    </body>
+</html>

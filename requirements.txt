@@ -1,0 +1,9 @@
+Flask==0.8
+Jinja2==2.6
+MarkupSafe==0.15
+Werkzeug==0.8.3
+gevent==0.13.7
+greenlet==0.3.4
+ipython==0.12.1
+simplejson==2.5.2
+wsgiref==0.1.2
